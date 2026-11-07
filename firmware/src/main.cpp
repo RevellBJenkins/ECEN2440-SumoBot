@@ -137,6 +137,7 @@ void oled_text(const char* text, int x, int y) {
 }
 
 
+
 void oled_rectangle(int x, int y, int width, int height) {
     for (int row = y; row < y + height; row++) {
         for (int col = x; col < x + width; col++) {
@@ -145,22 +146,107 @@ void oled_rectangle(int x, int y, int width, int height) {
     }
 }
 
-void draw_eyes(bool open) {
-    // Clear the display buffer
+// Draw a filled rectangle with rounded corners
+void oled_rounded_rectangle(int x, int y, int width, int height, int radius) {
+    for (int row = 0; row < height; row++) {
+        for (int col = 0; col < width; col++) {
+
+            int dx = 0;
+            int dy = 0;
+
+            if (col < radius) {
+                dx = radius - col - 1;
+            } else if (col >= width - radius) {
+                dx = col - (width - radius);
+            }
+
+            if (row < radius) {
+                dy = radius - row - 1;
+            } else if (row >= height - radius) {
+                dy = row - (height - radius);
+            }
+
+            if (dx * dx + dy * dy <= radius * radius) {
+                oled_pixel(x + col, y + row);
+            }
+        }
+    }
+}
+
+// Clear a rectangular area of the framebuffer
+void oled_clear_rectangle(int x, int y, int width, int height) {
+    for (int row = y; row < y + height; row++) {
+        for (int col = x; col < x + width; col++) {
+            if (col >= 0 && col < OLED_WIDTH &&
+                row >= 0 && row < OLED_HEIGHT) {
+
+                buffer[col + (row / 8) * OLED_WIDTH] &=
+                    ~(1 << (row % 8));
+            }
+        }
+    }
+}
+
+// Draw two eyes with adjustable height and pupil position
+void draw_eyes(int eye_height, int pupil_offset) {
     memset(buffer, 0, sizeof(buffer));
 
-    if (open) {
-        // Two open eyes
-        oled_rectangle(26, 5, 24, 22);
-        oled_rectangle(78, 5, 24, 22);
-    } else {
-        // Two closed eyes
-        oled_rectangle(26, 15, 24, 3);
-        oled_rectangle(78, 15, 24, 3);
+    constexpr int EYE_WIDTH = 24;
+    constexpr int EYE_CENTER_Y = 16;
+    constexpr int LEFT_EYE_X = 26;
+    constexpr int RIGHT_EYE_X = 78;
+
+    int eye_y = EYE_CENTER_Y - eye_height / 2;
+
+    int radius = eye_height / 3;
+    if (radius > 8) radius = 8;
+
+    // Draw white rounded eyes
+    oled_rounded_rectangle(
+        LEFT_EYE_X, eye_y, EYE_WIDTH, eye_height, radius
+    );
+
+    oled_rounded_rectangle(
+        RIGHT_EYE_X, eye_y, EYE_WIDTH, eye_height, radius
+    );
+
+    // Draw dark pupils only when eyes are sufficiently open
+    if (eye_height >= 14) {
+        constexpr int PUPIL_WIDTH = 7;
+        constexpr int PUPIL_HEIGHT = 10;
+
+        int pupil_y = EYE_CENTER_Y - PUPIL_HEIGHT / 2;
+
+        int left_pupil_x = LEFT_EYE_X + 8 + pupil_offset;
+        int right_pupil_x = RIGHT_EYE_X + 8 + pupil_offset;
+
+        oled_clear_rectangle(
+            left_pupil_x, pupil_y, PUPIL_WIDTH, PUPIL_HEIGHT
+        );
+
+        oled_clear_rectangle(
+            right_pupil_x, pupil_y, PUPIL_WIDTH, PUPIL_HEIGHT
+        );
     }
 
     oled_update();
 }
+
+// Animate the eyes closing and opening
+void blink() {
+    for (int height = 22; height >= 2; height -= 4) {
+        draw_eyes(height, 0);
+        sleep_ms(35);
+    }
+
+    sleep_ms(100);
+
+    for (int height = 2; height <= 22; height += 4) {
+        draw_eyes(height, 0);
+        sleep_ms(35);
+    }
+}
+
 
 
 
@@ -168,13 +254,32 @@ int main() {
     oled_init();
 
     while (true) {
-        draw_eyes(true);   // Open eyes
-        sleep_ms(3000);    // Wait 3 seconds
 
-        draw_eyes(false);  // Close eyes
-        sleep_ms(150);     // Blink for 150 ms
+        // Look forward
+        draw_eyes(22, 0);
+        sleep_ms(1500);
+
+        // Look left
+        draw_eyes(22, -5);
+        sleep_ms(700);
+
+        // Look forward
+        draw_eyes(22, 0);
+        sleep_ms(500);
+
+        // Look right
+        draw_eyes(22, 5);
+        sleep_ms(700);
+
+        // Look forward
+        draw_eyes(22, 0);
+        sleep_ms(500);
+
+        // Blink
+        blink();
+
+        sleep_ms(1000);
     }
 
     return 0;
 }
-
