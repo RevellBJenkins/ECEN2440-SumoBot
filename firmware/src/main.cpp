@@ -136,19 +136,45 @@ void oled_text(const char* text, int x, int y) {
     }
 }
 
+
+void oled_rectangle(int x, int y, int width, int height) {
+    for (int row = y; row < y + height; row++) {
+        for (int col = x; col < x + width; col++) {
+            oled_pixel(col, row);
+        }
+    }
+}
+
+void draw_eyes(bool open) {
+    // Clear the display buffer
+    memset(buffer, 0, sizeof(buffer));
+
+    if (open) {
+        // Two open eyes
+        oled_rectangle(26, 5, 24, 22);
+        oled_rectangle(78, 5, 24, 22);
+    } else {
+        // Two closed eyes
+        oled_rectangle(26, 15, 24, 3);
+        oled_rectangle(78, 15, 24, 3);
+    }
+
+    oled_update();
+}
+
+
+
 int main() {
     oled_init();
 
-    memset(buffer, 0, sizeof(buffer));
-
-    // Display text
-    oled_text("SUMO BOT", 40, 12);
-
-    oled_update();
-
     while (true) {
-        sleep_ms(1000);
+        draw_eyes(true);   // Open eyes
+        sleep_ms(3000);    // Wait 3 seconds
+
+        draw_eyes(false);  // Close eyes
+        sleep_ms(150);     // Blink for 150 ms
     }
 
     return 0;
 }
+
